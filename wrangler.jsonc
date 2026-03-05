@@ -3,6 +3,12 @@
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "mcp.declassification-engine.org",
+      "custom_domain": true
+    }
+  ],
   "services": [
     {
       "binding": "VECTOR_SEARCH",
