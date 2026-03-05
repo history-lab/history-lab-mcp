@@ -34,6 +34,17 @@ export class CorpusClient {
   // ==========================================
 
   async searchDocs(opts: CorpusSearchOptions): Promise<CorpusSearchResult> {
+    // Guard: title-only ilike search is slow (no index). Require a FTS query alongside it
+    // or at minimum a corpus filter on a small corpus. Without FTS, ilike on title
+    // does a sequential scan that times out on large corpora (CIA=936K, CFPF=3.2M).
+    if (opts.titleQuery && !opts.query) {
+      throw new ApiError(
+        'Title-only search is very slow (sequential scan with no index). Combine with a full-text query parameter for fast results, e.g. query="cuba" + title="cuba" to search both body and title.',
+        400,
+        '/docs',
+      )
+    }
+
     const limit = Math.min(opts.limit ?? this.config.defaultLimit, 100)
     const offset = opts.offset ?? 0
 
@@ -129,6 +140,15 @@ export class CorpusClient {
     const limit = Math.min(opts.limit ?? this.config.defaultLimit, 100)
     const offset = opts.offset ?? 0
 
+    // When FTS is requested, use two-step approach:
+    // 1. Search /docs (has indexed full_text tsvector) with corpus=frus to get doc_ids
+    // 2. Fetch those docs from /docs_frus for FRUS-specific metadata
+    // This is necessary because docs_frus has no full_text tsvector column.
+    if (opts.query) {
+      return this.searchFrusWithFts(opts, limit, offset)
+    }
+
+    // No FTS — query docs_frus directly (ilike filters on FRUS fields)
     const q = this.query('/docs_frus')
       .select(opts.select ?? [...SELECT.frus])
       .limit(limit)
@@ -136,9 +156,6 @@ export class CorpusClient {
       .withCount()
       .range(offset, offset + limit - 1)
 
-    if (opts.query) {
-      q.fts('full_text', opts.query, opts.ftsMode ?? 'plfts')
-    }
     if (opts.titleQuery) {
       q.ilike('title', opts.titleQuery)
     }
@@ -173,6 +190,85 @@ export class CorpusClient {
     const { data, totalCount } = await this.fetchWithCount<RawFrusDoc[]>(q)
     return {
       documents: data.map(normalizeFrusDoc),
+      totalCount,
+    }
+  }
+
+  /**
+   * Two-step FRUS FTS: search /docs for doc_ids using indexed full_text,
+   * then fetch FRUS metadata from /docs_frus.
+   */
+  private async searchFrusWithFts(opts: FrusSearchOptions, limit: number, offset: number): Promise<FrusSearchResult> {
+    const hasFrusFilters = !!(opts.from || opts.to || opts.location)
+
+    // When FRUS-specific filters (from/to/location) are present, over-fetch from /docs
+    // since we'll filter client-side and need enough candidates
+    const fetchLimit = hasFrusFilters ? Math.min(limit * 10, 100) : limit
+
+    // Step 1: Get matching doc_ids from /docs with indexed full_text
+    const idsQuery = this.query('/docs')
+      .select(['doc_id'])
+      .eq('corpus', 'frus')
+      .fts('full_text', opts.query!, opts.ftsMode ?? 'plfts')
+      .withCount()
+      .range(offset, offset + fetchLimit - 1)
+      .limit(fetchLimit)
+      .offset(offset)
+
+    // Apply filters that exist on /docs too
+    if (opts.dateFrom) {
+      idsQuery.gte('authored', opts.dateFrom)
+    }
+    if (opts.dateTo) {
+      idsQuery.lt('authored', opts.dateTo)
+    }
+    if (opts.classification) {
+      if (Array.isArray(opts.classification)) {
+        idsQuery.inList('classification', opts.classification)
+      } else {
+        idsQuery.eq('classification', opts.classification)
+      }
+    }
+
+    idsQuery.order(opts.orderBy ?? 'authored', opts.orderDir ?? 'desc')
+
+    const { data: idRows, totalCount } = await this.fetchWithCount<{ doc_id: string }[]>(idsQuery)
+
+    if (idRows.length === 0) {
+      return { documents: [], totalCount: totalCount ?? 0 }
+    }
+
+    // Step 2: Fetch FRUS metadata for those doc_ids
+    const docIds = idRows.map(r => r.doc_id)
+    const frusQuery = this.query('/docs_frus')
+      .select(opts.select ?? [...SELECT.frus])
+      .inList('doc_id', docIds)
+      .limit(fetchLimit)
+
+    // Apply FRUS-specific filters server-side on /docs_frus
+    if (opts.from) {
+      frusQuery.ilike('p_from', opts.from)
+    }
+    if (opts.to) {
+      frusQuery.ilike('p_to', opts.to)
+    }
+    if (opts.location) {
+      frusQuery.ilike('location', opts.location)
+    }
+
+    const frusData = await this.fetch<RawFrusDoc[]>(frusQuery)
+
+    // Preserve the FTS ranking order from step 1
+    const frusMap = new Map(frusData.map(d => [d.doc_id, d]))
+    const ordered = docIds
+      .map(id => frusMap.get(id))
+      .filter((d): d is RawFrusDoc => d != null)
+
+    // Trim to requested limit
+    const trimmed = ordered.slice(0, limit)
+
+    return {
+      documents: trimmed.map(normalizeFrusDoc),
       totalCount,
     }
   }

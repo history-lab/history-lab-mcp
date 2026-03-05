@@ -17,7 +17,7 @@ const DEFAULTS: HistoryLabConfig = {
   defaultTopK: 10,
   defaultLimit: 25,
   collectionId: '80650a98-fe49-429a-afbd-9dde66e2d02b',
-  requestTimeoutMs: 30_000,
+  requestTimeoutMs: 15_000,
 }
 
 export function loadConfig(overrides?: Partial<HistoryLabConfig>): HistoryLabConfig {

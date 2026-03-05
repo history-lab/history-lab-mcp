@@ -59,11 +59,17 @@ export function createServer(config: HistoryLabConfig): McpServer {
   // ==========================================
   server.tool(
     'corpus_search',
-    'Full-text search across ~5M declassified documents in the FOI Archive. Searches document bodies using PostgreSQL full-text search. Supports filtering by corpus, classification, date range, and title. Use frus_search for FRUS-specific fields (sender/recipient/location).',
+    `Full-text search across ~5M declassified documents in the FOI Archive. Searches document bodies using PostgreSQL full-text search. Supports filtering by corpus, classification, date range, and title. Use frus_search for FRUS-specific fields (sender/recipient/location).
+
+SLOW QUERY WARNINGS:
+- ALWAYS provide a corpus filter when possible. Unfiltered FTS across 5M docs can take 3-8s.
+- Title-only search (without a query) will be rejected — it requires a full table scan. Always combine title with a full-text query.
+- The cfpf corpus (3.2M docs) is the largest and slowest to search.
+- Best practice: provide query + corpus + date range for fastest results (<200ms).`,
     {
-      query: z.string().optional().describe('Full-text search query (searches document body). Supports plain language.'),
-      title: z.string().optional().describe('Title search (case-insensitive pattern match, e.g. "cuba" or "vietnam war")'),
-      corpus: z.enum(CORPUS_IDS).optional().describe('Filter by document collection'),
+      query: z.string().optional().describe('Full-text search query (searches document body). Supports plain language. RECOMMENDED: always provide this for fast results.'),
+      title: z.string().optional().describe('Title search (case-insensitive pattern match). WARNING: Must be combined with a full-text query — title-only search is rejected because it causes timeouts.'),
+      corpus: z.enum(CORPUS_IDS).optional().describe('Filter by document collection. STRONGLY RECOMMENDED for performance — omitting this searches all 5M docs.'),
       classification: z.enum(CLASSIFICATIONS).optional().describe('Filter by security classification'),
       date_from: z.string().optional().describe('Start date (ISO format, e.g. "1962-01-01")'),
       date_to: z.string().optional().describe('End date (ISO format, e.g. "1963-01-01")'),
@@ -98,14 +104,19 @@ export function createServer(config: HistoryLabConfig): McpServer {
   // ==========================================
   server.tool(
     'frus_search',
-    'Search the Foreign Relations of the United States (FRUS) collection. 312K documents spanning 1620-1989. Includes sender/recipient, location, chapter info, and AI-generated summaries. Use this instead of corpus_search when you need diplomatic metadata.',
+    `Search the Foreign Relations of the United States (FRUS) collection. 312K documents spanning 1620-1989. Includes sender/recipient, location, chapter info, and AI-generated summaries. Use this instead of corpus_search when you need diplomatic metadata.
+
+SLOW QUERY WARNINGS:
+- Sender/recipient/location filters without a date range are slow (~5-8s) — they scan 312K docs.
+- Best practice: always combine from/to/location with a date_from + date_to range for fast results (<500ms).
+- Adding a full-text query is fast and helps narrow results.`,
     {
-      query: z.string().optional().describe('Full-text search query'),
-      from: z.string().optional().describe('Sender name (e.g. "kissinger")'),
-      to: z.string().optional().describe('Recipient name (e.g. "nixon")'),
-      location: z.string().optional().describe('Where the document was authored (e.g. "moscow")'),
-      date_from: z.string().optional().describe('Start date (ISO format)'),
-      date_to: z.string().optional().describe('End date (ISO format)'),
+      query: z.string().optional().describe('Full-text search query. Fast when provided — uses indexed search.'),
+      from: z.string().optional().describe('Sender name (e.g. "kissinger"). WARNING: Slow (~5s) without a date range filter.'),
+      to: z.string().optional().describe('Recipient name (e.g. "nixon"). WARNING: Slow (~5s) without a date range filter.'),
+      location: z.string().optional().describe('Where the document was authored (e.g. "moscow"). WARNING: Slow without a date range filter.'),
+      date_from: z.string().optional().describe('Start date (ISO format). RECOMMENDED when using from/to/location filters.'),
+      date_to: z.string().optional().describe('End date (ISO format). RECOMMENDED when using from/to/location filters.'),
       classification: z.enum(CLASSIFICATIONS).optional().describe('Filter by classification'),
       limit: z.number().min(1).max(100).optional().describe('Max results (default 25)'),
       offset: z.number().min(0).optional().describe('Offset for pagination'),
