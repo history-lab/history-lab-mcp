@@ -48,11 +48,26 @@ export default {
     const server = createServer(config)
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless
-      enableJsonResponse: true,
     })
 
     await server.connect(transport)
 
-    return transport.handleRequest(request)
+    const response = await transport.handleRequest(request)
+
+    // Add CORS headers for browser-based MCP clients
+    const headers = new Headers(response.headers)
+    headers.set('Access-Control-Allow-Origin', '*')
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, Mcp-Protocol-Version')
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers })
+    }
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
   },
 }
