@@ -6,6 +6,8 @@ export interface HistoryLabConfig {
   defaultLimit: number
   collectionId: string
   requestTimeoutMs: number
+  /** Custom fetch function — used for Cloudflare service bindings */
+  vectorFetch?: typeof fetch
 }
 
 const DEFAULTS: HistoryLabConfig = {

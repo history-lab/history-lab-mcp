@@ -10,12 +10,14 @@ export class VectorClient {
   private apiKey: string
   private collectionId: string
   private timeoutMs: number
+  private fetchFn: typeof fetch
 
   constructor(private config: HistoryLabConfig) {
     this.baseUrl = config.vectorApiUrl.replace(/\/$/, '')
     this.apiKey = config.vectorApiKey
     this.collectionId = config.collectionId
     this.timeoutMs = config.requestTimeoutMs
+    this.fetchFn = config.vectorFetch ?? fetch
   }
 
   get isConfigured(): boolean {
@@ -108,7 +110,7 @@ export class VectorClient {
   }
 
   private async post(path: string, body: unknown): Promise<unknown> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const response = await this.fetchFn(`${this.baseUrl}${path}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
@@ -130,7 +132,7 @@ export class VectorClient {
   }
 
   private async get(path: string): Promise<unknown> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const response = await this.fetchFn(`${this.baseUrl}${path}`, {
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
       },

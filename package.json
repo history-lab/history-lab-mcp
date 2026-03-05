@@ -42,6 +42,7 @@
     "dotenv": "^16.0.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260305.1",
     "@types/node": "^22.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0"
