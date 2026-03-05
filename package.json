@@ -1,0 +1,49 @@
+{
+  "name": "history-lab",
+  "version": "0.1.0",
+  "description": "Search ~5M declassified historical documents. CLI tool and MCP server for the FOI Archive.",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
+    }
+  },
+  "bin": {
+    "history-lab": "./dist/bin/cli.js",
+    "history-lab-mcp": "./dist/bin/mcp.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "dev:mcp": "tsx bin/mcp.ts",
+    "dev:cli": "tsx bin/cli.ts"
+  },
+  "keywords": [
+    "history",
+    "declassified",
+    "foia",
+    "mcp",
+    "cli",
+    "search",
+    "archives"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "commander": "^12.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}
