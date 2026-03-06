@@ -187,13 +187,13 @@ export function formatEntities(entities: Entity[]): string {
 
   const lines: string[] = [
     `**${entities.length} entities:**\n`,
-    `| Entity | Type | Documents | Wikidata |`,
-    `|--------|------|-----------|----------|`,
+    `| ID | Entity | Type | Documents | Wikidata |`,
+    `|----|--------|------|-----------|----------|`,
   ]
 
   for (const e of entities) {
     const wikidata = e.wikidataId ? `[${e.wikidataId}](https://www.wikidata.org/wiki/${e.wikidataId})` : '--'
-    lines.push(`| ${e.name} | ${e.group} | ${e.docCount.toLocaleString()} | ${wikidata} |`)
+    lines.push(`| ${e.entityId} | ${e.name} | ${e.group} | ${e.docCount.toLocaleString()} | ${wikidata} |`)
   }
 
   return lines.join('\n')
