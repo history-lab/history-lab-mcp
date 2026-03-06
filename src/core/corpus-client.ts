@@ -269,7 +269,9 @@ export class CorpusClient {
 
     return {
       documents: trimmed.map(normalizeFrusDoc),
-      totalCount,
+      // When FRUS-specific filters are applied client-side, the FTS totalCount
+      // doesn't reflect the filtered result set. Use the post-filter count instead.
+      totalCount: hasFrusFilters ? ordered.length : totalCount,
     }
   }
 
@@ -357,7 +359,8 @@ export class CorpusClient {
       .limit(limit)
       .offset(offset)
 
-    return this.fetch<TopicDoc[]>(q)
+    const data = await this.fetch<RawTopicDoc[]>(q)
+    return data.map(normalizeTopicDoc)
   }
 
   async getClassifications(): Promise<ClassificationInfo[]> {
@@ -536,6 +539,13 @@ interface RawTopic {
   name: string | null
 }
 
+interface RawTopicDoc {
+  corpus: string
+  topic_id: number
+  doc_id: string
+  score: number
+}
+
 interface RawClassification {
   classification: string
   sensitivity_level: number
@@ -643,5 +653,14 @@ function normalizeTopic(raw: RawTopic): Topic {
     topicId: raw.topic_id,
     title: raw.title,
     name: raw.name,
+  }
+}
+
+function normalizeTopicDoc(raw: RawTopicDoc): TopicDoc {
+  return {
+    corpus: raw.corpus,
+    topicId: raw.topic_id,
+    docId: raw.doc_id,
+    score: raw.score,
   }
 }
