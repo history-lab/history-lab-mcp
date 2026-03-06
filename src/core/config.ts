@@ -12,7 +12,7 @@ export interface HistoryLabConfig {
 
 const DEFAULTS: HistoryLabConfig = {
   vectorApiUrl: 'https://vector-search-worker.nchimicles.workers.dev',
-  vectorApiKey: '',
+  vectorApiKey: 'historylab-public-api-2026',
   corpusApiUrl: 'https://api.foiarchive.org',
   defaultTopK: 10,
   defaultLimit: 25,

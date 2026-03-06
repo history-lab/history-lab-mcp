@@ -41,12 +41,8 @@ export function createCli(): Command {
       .option('--from <date>', 'Start date filter (YYYY, YYYY-MM, or YYYY-MM-DD)')
       .option('--to <date>', 'End date filter')
   ).action(async (query: string, opts) => {
-    const search = getSearch()
-    if (!search.vectorAvailable) {
-      errorOut('Vector search requires an API key. Set HISTORYLAB_VECTOR_API_KEY.\n\nCorpus search works without a key:\n  history-lab corpus-search --query "your query"')
-    }
     try {
-      const results = await search.vectorSearch({
+      const results = await getSearch().vectorSearch({
         query,
         limit: parseInt(opts.limit),
         dateFrom: opts.from,
