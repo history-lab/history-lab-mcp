@@ -25,7 +25,7 @@ If you use Claude Code, just ask it to add the MCP server:
 
 > "Add the History Lab MCP server at `https://mcp.declassification-engine.org/mcp`"
 
-Or add it manually to your Claude Code settings.
+Or add it manually to your Claude Code settings by typing /mcp.
 
 ## CLI (for the technically inclined)
 
